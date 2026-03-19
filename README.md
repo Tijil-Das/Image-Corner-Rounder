@@ -24,7 +24,7 @@ Everything runs locally in your browser using the Canvas API. Your images never 
 
 ### Option 1 — Open directly
 
-Just download [`corner-rounder.html`](./corner-rounder.html) and open it in any modern browser. That's it.
+Just download [`Corner-Rounder.html`](./Corner-Rounder.html) and open it in any modern browser. That's it.
 
 ### Option 2 — Serve locally
 
