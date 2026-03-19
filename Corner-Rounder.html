@@ -570,19 +570,49 @@
     }
   }
 
-  function downloadCanvas(canvas, name) {
-    const link = document.createElement('a');
+  // Convert canvas to a Blob
+  function canvasToBlob(canvas) {
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  // Save with native file picker (File System Access API)
+  // Falls back to classic <a> download if not supported
+  async function downloadCanvas(canvas, name) {
     const base = name.replace(/\.[^.]+$/, '');
-    link.download = `${base}-rounded.png`;
-    link.href = canvas.toDataURL('image/png');
+    const fileName = `${base}-rounded.png`;
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] } }],
+        });
+        const blob = await canvasToBlob(canvas);
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (err) {
+        // User cancelled the dialog — do nothing
+        if (err.name === 'AbortError') return;
+        // Any other error: fall through to legacy method
+      }
+    }
+
+    // Legacy fallback
+    const blob = await canvasToBlob(canvas);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = url;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
   // Slider
   slider.addEventListener('input', () => {
     radiusPct = parseInt(slider.value);
     radiusVal.textContent = `${radiusPct}%`;
-    // Update active preset pill
     presetPills.forEach(p => p.classList.toggle('active', parseInt(p.dataset.v) === radiusPct));
     updateAllCanvases();
   });
@@ -599,12 +629,12 @@
     });
   });
 
-  // Download all
-  dlAllBtn.addEventListener('click', () => {
-    images.forEach(({ id, name }) => {
+  // Download all — sequential so each picker dialog resolves before opening next
+  dlAllBtn.addEventListener('click', async () => {
+    for (const { id, name } of images) {
       const canvas = grid.querySelector(`canvas[data-id="${id}"]`);
-      if (canvas) setTimeout(() => downloadCanvas(canvas, name), 0);
-    });
+      if (canvas) await downloadCanvas(canvas, name);
+    }
   });
 
   // Clear
